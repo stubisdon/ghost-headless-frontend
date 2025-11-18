@@ -1,15 +1,16 @@
-# Ghost Headless Frontend - Minimalistic Design
+# Ghost Headless Frontend - Immersive Black Screen Experience
 
-A minimalistic, custom frontend for Ghost CMS built with Next.js and TypeScript.
+An immersive, minimalistic black screen frontend for Ghost CMS built with Next.js and TypeScript.
 
 ## Features
 
-- ✅ **Minimalistic Design** - Clean, modern, and focused on content
+- ✅ **Immersive Black Screen Design** - Black background with white monospace font
+- ✅ **Auto-play Audio** - Background audio plays on load
+- ✅ **YouTube Video Integration** - Fullscreen video experience
+- ✅ **Interactive Form Flow** - Name → Contact → Message progression
+- ✅ **Mobile Optimized** - Touch-friendly interactions
 - ✅ **TypeScript** - Type-safe development
 - ✅ **Next.js 14** - Server-side rendering and static generation
-- ✅ **Responsive** - Works beautifully on all devices
-- ✅ **SEO Optimized** - Proper meta tags and Open Graph support
-- ✅ **Fast** - Static generation with ISR (Incremental Static Regeneration)
 
 ## Quick Start
 
@@ -39,7 +40,16 @@ NEXT_PUBLIC_SITE_URL=https://catsky.club
 2. Create a new Custom Integration
 3. Copy the **Content API Key**
 
-### 3. Run Development Server
+### 3. Add Media Files
+
+```bash
+# Add your audio file
+cp /path/to/your/audio.mp3 public/audio/knock-knock.mp3
+```
+
+The video is currently set to use YouTube video `https://www.youtube.com/watch?v=8wU8k2kDaTo`. To change it, edit `YOUTUBE_VIDEO_ID` in `pages/index.tsx`.
+
+### 4. Run Development Server
 
 ```bash
 npm run dev
@@ -47,29 +57,36 @@ npm run dev
 
 Visit [http://localhost:3000](http://localhost:3000) to see your site.
 
-### 4. Build for Production
+## User Experience Flow
 
-```bash
-npm run build
-npm start
-```
+1. **Intro Screen**: Black screen with "knock knock 🐾" and auto-play audio
+2. **Click Anywhere**: YouTube video plays fullscreen
+3. **After Video**: "who are you?" input field appears
+4. **Enter Name**: Shows "hello, [name]" + contact field
+5. **Enter Contact**: Final message screen with submission
 
 ## Project Structure
 
 ```
 ghost-headless-frontend-starter/
 ├── components/          # React components
-│   ├── Header.tsx      # Site header with navigation
-│   └── Footer.tsx      # Site footer
+│   ├── Header.tsx      # Site header (not used in immersive mode)
+│   └── Footer.tsx      # Site footer (not used in immersive mode)
 ├── lib/
 │   └── ghost-api.ts    # Ghost Content API client
 ├── pages/
 │   ├── _app.tsx        # Next.js app wrapper
-│   ├── index.tsx       # Homepage (post listing)
+│   ├── index.tsx       # Main immersive experience
+│   ├── api/
+│   │   └── submit.ts   # Form submission endpoint
 │   └── posts/
-│       └── [slug].tsx  # Single post page
+│       └── [slug].tsx  # Single post page (optional)
 ├── styles/
-│   └── globals.css     # Global styles (minimalistic design)
+│   └── globals.css     # Global styles (black screen design)
+├── public/
+│   └── audio/          # Audio files directory
+├── types/
+│   └── youtube.d.ts    # YouTube API type definitions
 ├── next.config.js      # Next.js configuration
 ├── tsconfig.json       # TypeScript configuration
 └── package.json        # Dependencies
@@ -77,94 +94,52 @@ ghost-headless-frontend-starter/
 
 ## Customization
 
-### Colors
+### Change YouTube Video
 
-Edit `styles/globals.css` to change the color scheme:
+Edit `pages/index.tsx`:
+```typescript
+const YOUTUBE_VIDEO_ID = 'your-video-id-here'
+```
 
+### Colors & Typography
+
+Edit `styles/globals.css`:
 ```css
 :root {
-  --color-primary: #000;      /* Main text color */
-  --color-secondary: #666;    /* Secondary text */
-  --color-accent: #402b91;    /* Accent color (purple) */
-  --color-bg: #fff;           /* Background */
-  --color-border: #e5e5e5;    /* Borders */
+  --color-bg: #000000;      /* Background color */
+  --color-text: #ffffff;    /* Text color */
+  --font-mono: 'Courier New', Courier, monospace;
 }
-```
-
-### Typography
-
-The design uses system fonts for optimal performance. To change:
-
-```css
---font-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-```
-
-### Layout
-
-Adjust the max width in `styles/globals.css`:
-
-```css
---max-width: 800px;  /* Content max width */
 ```
 
 ## Deployment
 
 See [DEPLOYMENT.md](./DEPLOYMENT.md) for complete deployment instructions to DigitalOcean.
 
-**Quick deployment steps:**
-1. Build the project: `npm run build`
-2. Deploy to your server
-3. Set up nginx reverse proxy
-4. Configure SSL with Let's Encrypt
-5. Update Ghost configuration
-
-## API Endpoints Used
+## API Endpoints
 
 - `GET /ghost/api/content/posts/` - Get all posts
 - `GET /ghost/api/content/posts/slug/{slug}/` - Get single post
 - `GET /ghost/api/content/settings/` - Get site settings
-- `GET /ghost/api/content/authors/` - Get authors
-- `GET /ghost/api/content/tags/` - Get tags
-
-## Features Implemented
-
-- ✅ Homepage with post listing
-- ✅ Single post pages
-- ✅ Responsive navigation
-- ✅ Image optimization (Next.js Image component)
-- ✅ SEO meta tags
-- ✅ Open Graph tags
-- ✅ Twitter Card tags
-- ✅ Post excerpts
-- ✅ Author information
-- ✅ Tags display
-- ✅ Minimalistic, clean design
-
-## Next Steps
-
-- [ ] Add pagination for posts
-- [ ] Add author pages
-- [ ] Add tag pages
-- [ ] Add search functionality
-- [ ] Add RSS feed
-- [ ] Add dark mode (optional)
-- [ ] Customize design further
+- `POST /api/submit` - Submit contact form
 
 ## Troubleshooting
 
-### API not working?
-- Verify your API key is correct
-- Check that Ghost is running: `ghost status`
-- Test API endpoint directly in browser
+### Audio not playing?
+- Some browsers block autoplay. User may need to interact first.
+- Check browser console for errors.
+- Verify file path: `/audio/knock-knock.mp3`
 
-### Build errors?
-- Make sure all environment variables are set
-- Check Node.js version (requires 18+)
-- Clear `.next` folder and rebuild
+### Video not playing?
+- Check browser console for errors.
+- Verify YouTube video ID is correct in `pages/index.tsx`.
+- Ensure YouTube video is publicly accessible.
+- Check internet connection (YouTube video requires connection).
 
-### Images not loading?
-- Verify image domains in `next.config.js`
-- Check Ghost image URLs are accessible
+### Fullscreen not working?
+- Some browsers require user interaction before allowing fullscreen.
+- Mobile browsers may handle fullscreen differently.
+- The video will still play even if fullscreen fails.
 
 ## License
 
