@@ -18,6 +18,7 @@ export default function Home({ settings }: HomeProps) {
   const [contact, setContact] = useState('')
   const [isPlaying, setIsPlaying] = useState(false)
   const [youtubeReady, setYoutubeReady] = useState(false)
+  const [videoPlaying, setVideoPlaying] = useState(false)
   
   const audioRef = useRef<HTMLAudioElement>(null)
   const youtubePlayerRef = useRef<YT.Player | null>(null)
@@ -32,43 +33,46 @@ export default function Home({ settings }: HomeProps) {
     }
   }, [])
 
-  // Initialize YouTube player when API is ready
+  // Initialize YouTube player when API is ready - always render as background
   useEffect(() => {
-    if (youtubeReady && stage === 'video' && youtubeContainerRef.current && !youtubePlayerRef.current) {
+    if (youtubeReady && youtubeContainerRef.current && !youtubePlayerRef.current) {
       youtubePlayerRef.current = new (window as any).YT.Player(youtubeContainerRef.current, {
         videoId: YOUTUBE_VIDEO_ID,
         playerVars: {
-          autoplay: 1,
+          autoplay: 0,
           controls: 0,
           modestbranding: 1,
           rel: 0,
           showinfo: 0,
           iv_load_policy: 3,
           playsinline: 1,
-          fs: 1, // Allow fullscreen
+          loop: 1,
+          mute: 1,
+          fs: 0, // Disable fullscreen button
+          disablekb: 1, // Disable keyboard controls
+          cc_load_policy: 0, // Hide closed captions
+          enablejsapi: 1, // Enable JS API for programmatic control
+          origin: typeof window !== 'undefined' ? window.location.origin : '',
         },
         events: {
-          onReady: (event: YT.PlayerEvent) => {
-            // Try to enter fullscreen
-            const iframe = youtubeContainerRef.current?.querySelector('iframe')
-            if (iframe && iframe.requestFullscreen) {
-              iframe.requestFullscreen().catch(() => {
-                // Fullscreen may require user interaction
-                console.log('Fullscreen not available')
-              })
-            }
-            event.target.playVideo()
+          onReady: () => {
+            // Video player is ready - will play when user clicks
           },
           onStateChange: (event: YT.OnStateChangeEvent) => {
-            // Video ended
+            // Track when video is playing
+            if (event.data === (window as any).YT.PlayerState.PLAYING) {
+              setVideoPlaying(true)
+            }
+            // Video ended - loop it
             if (event.data === (window as any).YT.PlayerState.ENDED) {
-              handleVideoEnd()
+              event.target.playVideo()
             }
           },
         },
       })
     }
-  }, [youtubeReady, stage])
+  }, [youtubeReady])
+
 
   // Auto-play audio on mount
   useEffect(() => {
@@ -92,23 +96,21 @@ export default function Home({ settings }: HomeProps) {
   // Handle click anywhere to show video
   const handleScreenClick = () => {
     if (stage === 'intro') {
-      setStage('video')
+      // Start playing video first (hidden)
+      if (youtubePlayerRef.current) {
+        youtubePlayerRef.current.playVideo()
+        // Wait longer for YouTube title overlay to disappear, then show video
+        setTimeout(() => {
+          setStage('video')
+        }, 3000) // 3 second delay to let title overlay fade
+      } else {
+        setStage('video')
+      }
     }
   }
 
-  // Handle video end
+  // Handle video end - transition to name stage
   const handleVideoEnd = () => {
-    // Clean up YouTube player
-    if (youtubePlayerRef.current) {
-      youtubePlayerRef.current.destroy()
-      youtubePlayerRef.current = null
-    }
-    
-    // Exit fullscreen
-    if (document.exitFullscreen) {
-      document.exitFullscreen().catch(() => {})
-    }
-    
     setStage('name')
     // Focus name input
     setTimeout(() => {
@@ -194,96 +196,106 @@ export default function Home({ settings }: HomeProps) {
         onClick={handleScreenClick}
         style={{ cursor: stage === 'intro' ? 'pointer' : 'default' }}
       >
-        {/* Intro Stage */}
-        {stage === 'intro' && (
-          <div className="intro-screen">
-            <div className="knock-knock">
-              knock knock <span className="paw">🐾</span>
-            </div>
-            {!isPlaying && (
-              <div className="audio-hint">
-                Click anywhere to begin
+        {/* Video Background - only visible after click */}
+        <div className={`video-container video-background ${stage !== 'intro' ? 'visible' : ''} ${videoPlaying ? 'playing' : ''}`}>
+          <div 
+            ref={youtubeContainerRef}
+            id="youtube-player"
+            className="youtube-player"
+          />
+        </div>
+
+        {/* Content Overlay */}
+        <div className="content-overlay">
+          {/* Intro Stage */}
+          {stage === 'intro' && (
+            <div className="intro-screen">
+              <div className="knock-knock">
+                knock knock <span className="paw">🐾</span>
               </div>
-            )}
-          </div>
-        )}
-
-        {/* Video Stage */}
-        {stage === 'video' && (
-          <div className="video-container">
-            <div 
-              ref={youtubeContainerRef}
-              id="youtube-player"
-              className="youtube-player"
-            />
-          </div>
-        )}
-
-        {/* Name Input Stage */}
-        {stage === 'name' && (
-          <div className="form-screen">
-            <form onSubmit={handleNameSubmit} className="name-form">
-              <label htmlFor="name" className="form-label">
-                who are you?
-              </label>
-              <input
-                ref={nameInputRef}
-                id="name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="form-input"
-                placeholder=""
-                autoFocus
-                autoComplete="off"
-              />
-              <button type="submit" className="submit-button">
-                <span className="desktop-text">enter</span>
-                <span className="mobile-icon">→</span>
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* Contact Input Stage */}
-        {stage === 'contact' && (
-          <div className="form-screen">
-            <form onSubmit={handleContactSubmit} className="contact-form">
-              <div className="greeting">hello, {name}</div>
-              <label htmlFor="contact" className="form-label">
-                how can i reach you?
-              </label>
-              <input
-                ref={contactInputRef}
-                id="contact"
-                type="text"
-                value={contact}
-                onChange={(e) => setContact(e.target.value)}
-                className="form-input"
-                placeholder="email or phone"
-                autoFocus
-                autoComplete="off"
-              />
-              <button type="submit" className="submit-button">
-                <span className="desktop-text">enter</span>
-                <span className="mobile-icon">→</span>
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* Final Message Stage */}
-        {stage === 'message' && (
-          <div className="message-screen">
-            <div className="message-text">
-              do you want me to message you back?
+              {!isPlaying && (
+                <div className="audio-hint">
+                  Click anywhere to begin
+                </div>
+              )}
             </div>
-            <div className="message-details">
-              <div>name: {name}</div>
-              <div>contact: {contact}</div>
+          )}
+
+          {/* Video Stage - show intro overlay while video plays */}
+          {stage === 'video' && (
+            <div className="intro-screen">
+              <div className="knock-knock">
+                knock knock <span className="paw">🐾</span>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+
+          {/* Name Input Stage */}
+          {stage === 'name' && (
+            <div className="form-screen">
+              <form onSubmit={handleNameSubmit} className="name-form">
+                <label htmlFor="name" className="form-label">
+                  who are you?
+                </label>
+                <input
+                  ref={nameInputRef}
+                  id="name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="form-input"
+                  placeholder=""
+                  autoFocus
+                  autoComplete="off"
+                />
+                <button type="submit" className="submit-button">
+                  <span className="desktop-text">enter</span>
+                  <span className="mobile-icon">→</span>
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* Contact Input Stage */}
+          {stage === 'contact' && (
+            <div className="form-screen">
+              <form onSubmit={handleContactSubmit} className="contact-form">
+                <div className="greeting">hello, {name}</div>
+                <label htmlFor="contact" className="form-label">
+                  how can i reach you?
+                </label>
+                <input
+                  ref={contactInputRef}
+                  id="contact"
+                  type="text"
+                  value={contact}
+                  onChange={(e) => setContact(e.target.value)}
+                  className="form-input"
+                  placeholder="email or phone"
+                  autoFocus
+                  autoComplete="off"
+                />
+                <button type="submit" className="submit-button">
+                  <span className="desktop-text">enter</span>
+                  <span className="mobile-icon">→</span>
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* Final Message Stage */}
+          {stage === 'message' && (
+            <div className="message-screen">
+              <div className="message-text">
+                do you want me to message you back?
+              </div>
+              <div className="message-details">
+                <div>name: {name}</div>
+                <div>contact: {contact}</div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </>
   )

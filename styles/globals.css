@@ -54,14 +54,17 @@ body {
   width: 100%;
   height: 100%;
   text-align: center;
+  position: relative;
+  z-index: 2;
 }
 
 .knock-knock {
-  font-size: clamp(2rem, 8vw, 6rem);
+  font-size: clamp(1rem, 2vw, 1.5rem);
   font-weight: normal;
   letter-spacing: 0.1em;
   line-height: 1.2;
   animation: fadeIn 1s ease-in;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
 }
 
 .paw {
@@ -96,31 +99,105 @@ body {
   }
 }
 
-/* Video Container */
-.video-container {
+/* Video Container - Background Layer */
+.video-container.video-background {
   width: 100%;
   height: 100%;
-  position: relative;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 0;
   background: #000;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+
+.video-container.video-background.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.video-background .youtube-player {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.video-background .youtube-player iframe {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 100%;
+  min-height: 100%;
+  object-fit: cover;
+  /* Hide YouTube UI elements */
+  pointer-events: none;
+}
+
+/* Additional CSS to hide YouTube branding and controls */
+/* Note: YouTube UI elements inside the iframe cannot be styled via CSS due to cross-origin restrictions */
+/* The playerVars parameters in the YouTube API should handle hiding UI elements */
+.video-background .youtube-player iframe {
+  /* Ensure iframe doesn't interfere with pointer events */
+  pointer-events: none;
+}
+
+/* Overlay to hide YouTube title and UI elements at the top */
+.video-background::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 150px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.98) 20%, rgba(0, 0, 0, 0.95) 40%, rgba(0, 0, 0, 0.8) 60%, rgba(0, 0, 0, 0) 100%);
+  z-index: 1;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 5s ease-out 3s; /* Start fading after 3 seconds, take 5 seconds to fade */
+}
+
+/* Fade out the overlay after video has been playing for a while */
+.video-container.video-background.visible.playing::before {
+  opacity: 0;
+}
+
+/* Additional overlay for bottom right corner (YouTube logo area) */
+.video-background::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 250px;
+  height: 80px;
+  background: linear-gradient(to top right, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.9) 40%, rgba(0, 0, 0, 0.6) 70%, rgba(0, 0, 0, 0) 100%);
+  z-index: 1;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 5s ease-out 3s;
+}
+
+.video-container.video-background.visible.playing::after {
+  opacity: 0;
+}
+
+/* Content Overlay - On Top of Video */
+.content-overlay {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.youtube-player {
-  width: 100%;
-  height: 100%;
-  position: absolute;
-  top: 0;
-  left: 0;
-}
-
-.youtube-player iframe {
-  width: 100%;
-  height: 100%;
-  position: absolute;
-  top: 0;
-  left: 0;
 }
 
 /* Form Screens */
@@ -132,6 +209,8 @@ body {
   justify-content: center;
   padding: 2rem;
   animation: fadeIn 0.5s ease-in;
+  position: relative;
+  z-index: 2;
 }
 
 .name-form,
@@ -150,6 +229,7 @@ body {
   text-align: center;
   letter-spacing: 0.1em;
   opacity: 0.9;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
 }
 
 .form-label {
@@ -157,6 +237,7 @@ body {
   text-align: center;
   letter-spacing: 0.1em;
   margin-bottom: 1rem;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
 }
 
 .form-input {
@@ -225,6 +306,8 @@ body {
   padding: 2rem;
   text-align: center;
   animation: fadeIn 0.5s ease-in;
+  position: relative;
+  z-index: 2;
 }
 
 .message-text {
@@ -232,6 +315,7 @@ body {
   letter-spacing: 0.1em;
   line-height: 1.4;
   margin-bottom: 3rem;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
 }
 
 .message-details {
@@ -287,7 +371,7 @@ body {
 /* Landscape mobile adjustments */
 @media (max-width: 768px) and (orientation: landscape) {
   .knock-knock {
-    font-size: clamp(2rem, 6vh, 4rem);
+    font-size: clamp(1.25rem, 4vh, 2.5rem);
   }
 
   .form-label {
