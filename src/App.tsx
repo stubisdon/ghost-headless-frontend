@@ -1,40 +1,83 @@
 import { useState, useEffect, useRef } from 'react'
 import './index.css'
+import type { Experience, TimelineEvent, TextEvent, InputEvent, ChoiceEvent, Ending } from './types/experience'
 
-type Stage = 'play' | 'intro' | 'name' | 'conversation' | 'aha' | 'contact' | 'complete'
+type Stage = 'play' | 'experience' | 'ending'
 
-interface TextCue {
-  time: number // in seconds
-  text: string
+// Load experience data
+const EXPERIENCE_DATA: Experience = {
+  metadata: {
+    title: "Interactive Experience",
+    duration: 60,
+    audioFile: "/audio/knock-knock.mp3"
+  },
+  timeline: [
+    {
+      type: "text",
+      time: 2,
+      text: "welcome"
+    },
+    {
+      type: "text",
+      time: 4,
+      text: "my name is Catsky"
+    },
+    {
+      type: "text",
+      time: 6,
+      text: "i created this experience for you"
+    },
+    {
+      type: "input",
+      time: 10,
+      label: "by the way, what is your name?",
+      placeholder: "",
+      required: true,
+      storeAs: "name",
+      timeout: 30
+    },
+    {
+      type: "text",
+      time: 35,
+      text: "here's a voicemail i once got from a workshop"
+    },
+    {
+      type: "text",
+      time: 41,
+      text: "[the subtitles to the phone call]"
+    }
+  ],
+  endings: [
+    {
+      id: "ending-complete",
+      title: "Thank You",
+      text: "Thank you for experiencing this journey."
+    }
+  ]
 }
-
-// Text cues synced to audio timecode
-const TEXT_CUES: TextCue[] = [
-  { time: 2, text: 'welcome' },
-  { time: 6, text: 'let\'s begin' },
-  { time: 10, text: 'this is an interactive experience' },
-  { time: 15, text: 'we\'re about to get to know each other' },
-  { time: 20, text: 'are you ready?' },
-]
 
 export default function App() {
   const [stage, setStage] = useState<Stage>('play')
-  const [currentText, setCurrentText] = useState<string>('')
-  const [name, setName] = useState('')
-  const [contact, setContact] = useState('')
-  const [conversationStep, setConversationStep] = useState(0)
-  const [showTyping, setShowTyping] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [isPaused, setIsPaused] = useState(false)
-  const [hoveredMarker, setHoveredMarker] = useState<{ time: number; text: string } | null>(null)
+  const [currentEvent, setCurrentEvent] = useState<TimelineEvent | null>(null)
+  const [userData, setUserData] = useState<Record<string, string>>({})
+  const [currentEnding, setCurrentEnding] = useState<Ending | null>(null)
+  const [showInputResponse, setShowInputResponse] = useState<string | null>(null)
+  const [hoveredMarker, setHoveredMarker] = useState<{ time: number; label: string } | null>(null)
   
   const audioRef = useRef<HTMLAudioElement>(null)
-  const nameInputRef = useRef<HTMLInputElement>(null)
-  const contactInputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
   const timeUpdateIntervalRef = useRef<number | null>(null)
   const timelineRef = useRef<HTMLDivElement>(null)
   const timelineTrackRef = useRef<HTMLDivElement>(null)
+
+  // Get text events for timeline markers
+  const textEvents = EXPERIENCE_DATA.timeline.filter((e): e is TextEvent => e.type === 'text')
+  const inputEvents = EXPERIENCE_DATA.timeline.filter((e): e is InputEvent => e.type === 'input')
+  const choiceEvents = EXPERIENCE_DATA.timeline.filter((e): e is ChoiceEvent => e.type === 'choice')
+  const allMarkers = [...textEvents, ...inputEvents, ...choiceEvents]
 
   // Handle timeline seek
   const handleTimelineSeek = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -47,17 +90,25 @@ export default function App() {
     
     audioRef.current.currentTime = seekTime
     setCurrentTime(seekTime)
+    updateCurrentEvent(seekTime)
+  }
+
+  // Update current event based on time
+  const updateCurrentEvent = (time: number) => {
+    // Find the most recent event that should be active
+    const activeEvent = EXPERIENCE_DATA.timeline
+      .filter(e => time >= e.time)
+      .pop() || null
     
-    // Update current text based on seek time
-    const latestCue = TEXT_CUES.filter(cue => seekTime >= cue.time).pop()
-    setCurrentText(latestCue ? latestCue.text : '')
+    setCurrentEvent(activeEvent)
   }
 
   // Handle play button click
   const handlePlay = () => {
     if (audioRef.current) {
+      audioRef.current.src = EXPERIENCE_DATA.metadata.audioFile || '/audio/knock-knock.mp3'
       audioRef.current.play()
-      setStage('intro')
+      setStage('experience')
       startTimecodeTracking()
     }
   }
@@ -89,12 +140,66 @@ export default function App() {
       clearInterval(timeUpdateIntervalRef.current)
     }
     setStage('play')
-    setCurrentText('')
+    setCurrentEvent(null)
     setCurrentTime(0)
+    setUserData({})
+    setCurrentEnding(null)
+    setShowInputResponse(null)
     setIsPaused(false)
   }
 
-  // Track audio timecode and show text cues
+  // Handle input submission
+  const handleInputSubmit = (e: React.FormEvent, event: InputEvent) => {
+    e.preventDefault()
+    const input = e.currentTarget.querySelector('input') as HTMLInputElement
+    if (input && input.value.trim()) {
+      const userName = input.value.trim()
+      setUserData(prev => ({ ...prev, [event.storeAs]: userName }))
+      input.value = ''
+      
+      // Show response if this is the name input
+      if (event.storeAs === 'name') {
+        setShowInputResponse(`nice to meet you, ${userName}`)
+        // Hide the input form
+        setCurrentEvent(null)
+        // Continue with timeline after 3 seconds
+        setTimeout(() => {
+          setShowInputResponse(null)
+          // Resume timeline tracking
+          if (audioRef.current) {
+            updateCurrentEvent(audioRef.current.currentTime)
+          }
+        }, 3000)
+      }
+    }
+  }
+
+  // Handle choice selection
+  const handleChoiceSelect = (option: ChoiceEvent['options'][0]) => {
+    setUserData(prev => ({ ...prev, digDeeper: option.value }))
+    
+    // Find and show the ending
+    const ending = EXPERIENCE_DATA.endings.find(e => e.id === option.leadsTo)
+    if (ending) {
+      // Check if conditions match
+      const conditionsMatch = !ending.conditions || Object.entries(ending.conditions).every(
+        ([key, value]) => userData[key] === value || (key === 'digDeeper' && option.value === value)
+      )
+      
+      if (conditionsMatch) {
+        setCurrentEnding(ending)
+        setStage('ending')
+        if (audioRef.current) {
+          audioRef.current.pause()
+        }
+        if (timeUpdateIntervalRef.current) {
+          clearInterval(timeUpdateIntervalRef.current)
+        }
+      }
+    }
+  }
+
+  // Track audio timecode and update events
   const startTimecodeTracking = () => {
     if (timeUpdateIntervalRef.current) {
       clearInterval(timeUpdateIntervalRef.current)
@@ -105,107 +210,19 @@ export default function App() {
         const currentTime = audioRef.current.currentTime
         const duration = audioRef.current.duration
         
-        // Update time counter
         setCurrentTime(currentTime)
         if (duration && !isNaN(duration)) {
           setDuration(duration)
         }
 
-        // Show text cues based on timecode - show only the latest/current text
-        const latestCue = TEXT_CUES.filter((cue) => currentTime >= cue.time).pop()
-        if (latestCue && latestCue.text !== currentText) {
-          setCurrentText(latestCue.text)
-        }
+        updateCurrentEvent(currentTime)
 
-        // Transition to name input near the end or after all cues
-        if (
-          currentTime >= duration - 3 ||
-          (currentTime >= TEXT_CUES[TEXT_CUES.length - 1].time + 3)
-        ) {
-          if (timeUpdateIntervalRef.current) {
-            clearInterval(timeUpdateIntervalRef.current)
-          }
-          setTimeout(() => {
-            setStage('name')
-            setTimeout(() => {
-              nameInputRef.current?.focus()
-            }, 300)
-          }, 1000)
+        // Auto-focus input when input event becomes active
+        if (currentEvent?.type === 'input' && inputRef.current) {
+          setTimeout(() => inputRef.current?.focus(), 100)
         }
       }
     }, 100)
-  }
-
-  // Handle name submission
-  const handleNameSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (name.trim()) {
-      setStage('conversation')
-      setConversationStep(0)
-      // Start conversational flow
-      setTimeout(() => {
-        setShowTyping(true)
-        setTimeout(() => {
-          setShowTyping(false)
-          setConversationStep(1)
-        }, 1500)
-      }, 500)
-    }
-  }
-
-  // Handle conversational responses
-  useEffect(() => {
-    if (stage === 'conversation') {
-      if (conversationStep === 1) {
-        // After confirming name, show more conversation
-        setTimeout(() => {
-          setShowTyping(true)
-          setTimeout(() => {
-            setShowTyping(false)
-            setConversationStep(2)
-          }, 1500)
-        }, 2000)
-      } else if (conversationStep === 2) {
-        // After second response, show A-HA moment
-        setTimeout(() => {
-          setStage('aha')
-        }, 3000)
-      }
-    }
-  }, [stage, conversationStep])
-
-  // Handle A-HA moment completion
-  useEffect(() => {
-    if (stage === 'aha') {
-      // After A-HA moment, transition to contact
-      setTimeout(() => {
-        setStage('contact')
-        setTimeout(() => {
-          contactInputRef.current?.focus()
-        }, 300)
-      }, 4000)
-    }
-  }, [stage])
-
-  // Handle contact submission
-  const handleContactSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (contact.trim()) {
-      // Submit to API endpoint
-      try {
-        await fetch('/api/submit', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ name, contact }),
-        })
-      } catch (error) {
-        console.error('Submission error:', error)
-      }
-      
-      setStage('complete')
-    }
   }
 
   // Cleanup interval on unmount
@@ -217,12 +234,20 @@ export default function App() {
     }
   }, [])
 
+  // Get marker label for tooltip
+  const getMarkerLabel = (event: TimelineEvent): string => {
+    if (event.type === 'text') return event.text
+    if (event.type === 'input') return event.label
+    if (event.type === 'choice') return event.question
+    return ''
+  }
+
   return (
     <div className="app-container">
       {/* Hidden audio player */}
       <audio
         ref={audioRef}
-        src="/audio/knock-knock.mp3"
+        src={EXPERIENCE_DATA.metadata.audioFile || '/audio/knock-knock.mp3'}
         preload="auto"
       />
 
@@ -233,8 +258,8 @@ export default function App() {
         </button>
       )}
 
-      {/* Intro Stage - Text appears synced to timecode */}
-      {stage === 'intro' && (
+      {/* Experience Stage */}
+      {stage === 'experience' && (
         <div className="form-screen">
           <div className="debug-buttons">
             <button className="debug-pause-button" onClick={handlePause} title={isPaused ? "Resume" : "Pause"}>
@@ -247,14 +272,57 @@ export default function App() {
           <div className="time-counter">
             {Math.floor(currentTime)}s / {duration ? Math.floor(duration) : '?'}s
           </div>
-          <div className="text-display">
-            {currentText && (
+
+          {/* Text Display - always centered at same position */}
+          {(currentEvent?.type === 'text' || showInputResponse || (currentEvent?.type === 'input')) && (
+            <div className="text-display">
               <div className="conversational-text">
-                {currentText}
+                {showInputResponse || 
+                 (currentEvent?.type === 'text' ? currentEvent.text : '') ||
+                 (currentEvent?.type === 'input' ? currentEvent.label : '')}
               </div>
-            )}
-          </div>
-          
+            </div>
+          )}
+
+          {/* Input Display - positioned below without affecting text */}
+          {currentEvent?.type === 'input' && !showInputResponse && (
+            <div className="input-container-below">
+              <form onSubmit={(e) => handleInputSubmit(e, currentEvent)} className="name-form">
+                <input
+                  ref={inputRef}
+                  id="dynamic-input"
+                  type="text"
+                  className="form-input"
+                  placeholder={currentEvent.placeholder || ''}
+                  autoFocus
+                  autoComplete="off"
+                />
+                <button type="submit" className="submit-button">
+                  enter
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* Choice Display */}
+          {currentEvent?.type === 'choice' && (
+            <div className="form-screen">
+              <div className="form-label">{currentEvent.question}</div>
+              <div className="yes-no-buttons">
+                {currentEvent.options.map((option, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => handleChoiceSelect(option)}
+                    className="yes-no-button"
+                  >
+                    {option.text}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Timeline */}
           {duration > 0 && (
             <div className="timeline-container" ref={timelineRef}>
@@ -263,18 +331,18 @@ export default function App() {
                 ref={timelineTrackRef}
                 onClick={handleTimelineSeek}
               >
-                {/* Timeline markers for text cues */}
-                {TEXT_CUES.map((cue) => (
+                {/* Timeline markers */}
+                {allMarkers.map((event) => (
                   <div
-                    key={cue.time}
+                    key={`${event.type}-${event.time}`}
                     className="timeline-marker"
                     style={{
-                      left: `${(cue.time / duration) * 100}%`
+                      left: `${(event.time / duration) * 100}%`
                     }}
                     onMouseEnter={() => {
                       setHoveredMarker({
-                        time: cue.time,
-                        text: cue.text
+                        time: event.time,
+                        label: getMarkerLabel(event)
                       })
                     }}
                     onMouseLeave={() => setHoveredMarker(null)}
@@ -291,7 +359,7 @@ export default function App() {
                     }}
                   >
                     <div className="timeline-tooltip-time">{hoveredMarker.time}s</div>
-                    <div className="timeline-tooltip-text">{hoveredMarker.text}</div>
+                    <div className="timeline-tooltip-text">{hoveredMarker.label}</div>
                   </div>
                 )}
                 
@@ -316,116 +384,21 @@ export default function App() {
         </div>
       )}
 
-      {/* Name Input Stage */}
-      {stage === 'name' && (
-        <div className="form-screen">
-          <form onSubmit={handleNameSubmit} className="name-form">
-            <label htmlFor="name" className="form-label">
-              what's your first name?
-            </label>
-            <input
-              ref={nameInputRef}
-              id="name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="form-input"
-              placeholder=""
-              autoFocus
-              autoComplete="off"
-            />
-            <button type="submit" className="submit-button">
-              enter
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* Conversational Stage */}
-      {stage === 'conversation' && (
-        <div className="form-screen">
-          <div className="conversational-text">
-            {conversationStep === 0 && (
-              <>
-                nice to meet you, {name}
-                {showTyping && <span className="typing-indicator">...</span>}
-              </>
-            )}
-            {conversationStep === 1 && (
-              <>
-                i've got your name: {name}
-                {showTyping && <span className="typing-indicator">...</span>}
-              </>
-            )}
-            {conversationStep === 2 && (
-              <>
-                we're getting to know each other now
-                <br />
-                <br />
-                and you can interact with me
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* A-HA Moment Stage */}
-      {stage === 'aha' && (
+      {/* Ending Stage */}
+      {stage === 'ending' && currentEnding && (
         <div className="form-screen">
           <div className="text-display">
             <div className="conversational-text">
-              {name}, you just interacted with me
+              <div className="greeting">{currentEnding.title}</div>
               <br />
-              <br />
-              and i responded
-              <br />
-              <br />
-              this is the magic of interactive experiences
+              {currentEnding.text}
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Contact Input Stage */}
-      {stage === 'contact' && (
-        <div className="form-screen">
-          <form onSubmit={handleContactSubmit} className="contact-form">
-            <div className="greeting">thanks for the journey, {name}</div>
-            <label htmlFor="contact" className="form-label">
-              would you like more experiences like this?
-            </label>
-            <input
-              ref={contactInputRef}
-              id="contact"
-              type="text"
-              value={contact}
-              onChange={(e) => setContact(e.target.value)}
-              className="form-input"
-              placeholder="email or phone"
-              autoFocus
-              autoComplete="off"
-            />
-            <button type="submit" className="submit-button">
-              enter
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* Complete Stage */}
-      {stage === 'complete' && (
-        <div className="form-screen">
-          <div className="text-display">
-            <div className="conversational-text">
-              thank you, {name}
-              <br />
-              <br />
-              we'll be in touch
-            </div>
-          </div>
+          <button className="debug-stop-button" onClick={handleStop} style={{ position: 'fixed', bottom: '1rem', left: '1rem' }}>
+            restart
+          </button>
         </div>
       )}
     </div>
   )
 }
-

@@ -147,6 +147,20 @@ body {
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
   position: relative;
   animation: none !important;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+}
+
+.input-container-below {
+  position: absolute;
+  top: calc(50% + 1.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 400px;
 }
 
 /* Form Styles */
@@ -159,6 +173,16 @@ body {
   justify-content: center;
   padding: 2rem;
   text-align: center;
+  position: relative;
+}
+
+.name-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 400px;
+  gap: 1rem;
 }
 
 .greeting {
@@ -174,6 +198,7 @@ body {
   letter-spacing: 0.1em;
   margin-bottom: 1rem;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  width: 100%;
 }
 
 .form-input {
@@ -216,6 +241,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  align-self: center;
 }
 
 .submit-button:hover {
@@ -250,6 +276,38 @@ body {
   51%, 100% {
     opacity: 0;
   }
+}
+
+/* Choice Buttons */
+.yes-no-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 2rem;
+}
+
+.yes-no-button {
+  background: transparent;
+  border: 2px solid var(--color-text);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: clamp(1rem, 2vw, 1.5rem);
+  padding: 1rem 2rem;
+  cursor: pointer;
+  letter-spacing: 0.1em;
+  transition: all 0.3s ease;
+  text-transform: lowercase;
+  min-width: 120px;
+}
+
+.yes-no-button:hover {
+  background: var(--color-text);
+  color: var(--color-bg);
+}
+
+.yes-no-button:active {
+  transform: scale(0.95);
 }
 
 /* Timeline */
