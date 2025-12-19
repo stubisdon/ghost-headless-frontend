@@ -48,6 +48,24 @@ body {
   justify-content: center;
   background: var(--color-bg);
   overflow: hidden;
+  transition: background-color 1s ease-out;
+}
+
+.app-container.flash-white {
+  background-color: rgba(255, 255, 255, 0.8);
+  animation: flashFade 2.1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes flashFade {
+  0% {
+    background-color: rgba(255, 255, 255, 0.8);
+  }
+  4.76% {
+    background-color: rgba(255, 255, 255, 0.8);
+  }
+  100% {
+    background-color: var(--color-bg);
+  }
 }
 
 /* Play Button */
@@ -262,6 +280,13 @@ body {
   opacity: 1 !important;
   transform: none !important;
   animation: none !important;
+}
+
+.glow-text {
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.8),
+               0 0 20px rgba(255, 255, 255, 0.6),
+               0 0 30px rgba(255, 255, 255, 0.4);
+  transition: opacity 0.1s ease-out;
 }
 
 .typing-indicator {

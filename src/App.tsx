@@ -8,43 +8,123 @@ type Stage = 'play' | 'experience' | 'ending'
 const EXPERIENCE_DATA: Experience = {
   metadata: {
     title: "Interactive Experience",
-    duration: 60,
+    duration: 164,
     audioFile: "/audio/knock-knock.mp3"
   },
   timeline: [
+    // ACT I — SETUP (2.0s → 42.0s)
     {
       type: "text",
-      time: 2,
-      text: "welcome"
+      time: 2.0,
+      text: "Catsky"
     },
     {
       type: "text",
-      time: 4,
-      text: "my name is Catsky"
+      time: 6.0,
+      text: "Born in Russia."
     },
     {
       type: "text",
-      time: 6,
-      text: "i created this experience for you"
-    },
-    {
-      type: "input",
-      time: 10,
-      label: "by the way, what is your name?",
-      placeholder: "",
-      required: true,
-      storeAs: "name",
-      timeout: 30
+      time: 12.0,
+      text: "An environment not built for expressing emotions."
     },
     {
       type: "text",
-      time: 35,
-      text: "here's a voicemail i once got from a workshop"
+      time: 18.0,
+      text: "Or receiving them. Or validating them."
     },
     {
       type: "text",
-      time: 41,
-      text: "[the subtitles to the phone call]"
+      time: 23.0,
+      text: "Fourteen years old."
+    },
+    {
+      type: "text",
+      time: 29.0,
+      text: "Too many emotions. No way to explain them."
+    },
+    {
+      type: "text",
+      time: 35.0,
+      text: "So I had to find an outlet."
+    },
+    {
+      type: "text",
+      time: 42.0,
+      text: ""
+    },
+    // ACT II — CONFRONTATION (42.0s → 158.4s)
+    // 42.0 → 72.0: [voicemail plays] [voicemail transcription appears progressively]
+    {
+      type: "text",
+      time: 69.3,
+      text: "Silence."
+    },
+    {
+      type: "text",
+      time: 77.0,
+      text: "Was she mocking me?"
+    },
+    {
+      type: "text",
+      time: 84.0,
+      text: "Or hearing something I couldn't hear myself?"
+    },
+    {
+      type: "text",
+      time: 91.0,
+      text: "Because the years before that weren't quiet."
+    },
+    {
+      type: "text",
+      time: 98.0,
+      text: "They were turbulent."
+    },
+    {
+      type: "text",
+      time: 106.0,
+      text: "Unexpected turns. Betrayal."
+    },
+    {
+      type: "text",
+      time: 114.0,
+      text: "Sex. Lies."
+    },
+    {
+      type: "text",
+      time: 121.0,
+      text: "And moments worth surviving for."
+    },
+    {
+      type: "text",
+      time: 127.0,
+      text: "Music wasn't a dream."
+    },
+    {
+      type: "text",
+      time: 134.0,
+      text: "It was a translation."
+    },
+    {
+      type: "text",
+      time: 140.0,
+      text: "A place where complexity didn't need permission."
+    },
+    {
+      type: "text",
+      time: 147.0,
+      text: "Where nothing had to be simplified."
+    },
+    {
+      type: "text",
+      time: 153.0,
+      text: "And then this voicemail changed the question."
+    },
+    // ACT III — CHOICE (post-song, interactive)
+    {
+      type: "text",
+      time: 158.4,
+      text: "What happens next isn't up to me alone."
     }
   ],
   endings: [
@@ -66,12 +146,14 @@ export default function App() {
   const [currentEnding, setCurrentEnding] = useState<Ending | null>(null)
   const [showInputResponse, setShowInputResponse] = useState<string | null>(null)
   const [hoveredMarker, setHoveredMarker] = useState<{ time: number; label: string } | null>(null)
+  const [showFlash, setShowFlash] = useState(false)
   
   const audioRef = useRef<HTMLAudioElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const timeUpdateIntervalRef = useRef<number | null>(null)
   const timelineRef = useRef<HTMLDivElement>(null)
   const timelineTrackRef = useRef<HTMLDivElement>(null)
+  const flashTriggeredRef = useRef<Set<number>>(new Set())
 
   // Get text events for timeline markers
   const textEvents = EXPERIENCE_DATA.timeline.filter((e): e is TextEvent => e.type === 'text')
@@ -101,6 +183,19 @@ export default function App() {
       .pop() || null
     
     setCurrentEvent(activeEvent)
+    
+    // Trigger flash at 13.8 and 20.5 seconds (only once each)
+    const flashTimes = [13.8, 20.5]
+    for (const flashTime of flashTimes) {
+      if (time >= flashTime && !flashTriggeredRef.current.has(flashTime)) {
+        flashTriggeredRef.current.add(flashTime)
+        setShowFlash(true)
+        // Flash stays for 0.1s, then fades over 2s
+        setTimeout(() => {
+          setShowFlash(false)
+        }, 2100) // 0.1s flash + 2s fade
+      }
+    }
   }
 
   // Handle play button click
@@ -146,6 +241,8 @@ export default function App() {
     setCurrentEnding(null)
     setShowInputResponse(null)
     setIsPaused(false)
+    setShowFlash(false)
+    flashTriggeredRef.current.clear()
   }
 
   // Handle input submission
@@ -243,7 +340,7 @@ export default function App() {
   }
 
   return (
-    <div className="app-container">
+    <div className={`app-container ${showFlash ? 'flash-white' : ''}`}>
       {/* Hidden audio player */}
       <audio
         ref={audioRef}
@@ -270,7 +367,7 @@ export default function App() {
             </button>
           </div>
           <div className="time-counter">
-            {Math.floor(currentTime)}s / {duration ? Math.floor(duration) : '?'}s
+            {currentTime.toFixed(1)}s / {duration ? duration.toFixed(1) : '?'}s
           </div>
 
           {/* Text Display - always centered at same position */}
