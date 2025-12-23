@@ -244,6 +244,12 @@ body {
   opacity: 1;
 }
 
+textarea.form-input {
+  padding: 1rem;
+  text-align: left;
+  line-height: 1.5;
+}
+
 .submit-button {
   margin-top: 2rem;
   background: transparent;

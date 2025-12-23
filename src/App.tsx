@@ -125,6 +125,28 @@ const EXPERIENCE_DATA: Experience = {
       type: "text",
       time: 158.4,
       text: "What happens next isn't up to me alone."
+    },
+    {
+      type: "choice",
+      time: 164.0,
+      question: "",
+      options: [
+        {
+          text: "I want you to succeed.",
+          value: "support",
+          leadsTo: "branch-support"
+        },
+        {
+          text: "I want to keep watching.",
+          value: "observe",
+          leadsTo: "branch-observe"
+        },
+        {
+          text: "I don't know how I feel.",
+          value: "respond",
+          leadsTo: "branch-respond"
+        }
+      ]
     }
   ],
   endings: [
@@ -147,6 +169,8 @@ export default function App() {
   const [showInputResponse, setShowInputResponse] = useState<string | null>(null)
   const [hoveredMarker, setHoveredMarker] = useState<{ time: number; label: string } | null>(null)
   const [showFlash, setShowFlash] = useState(false)
+  const [selectedBranch, setSelectedBranch] = useState<string | null>(null)
+  const [showChoiceButtons, setShowChoiceButtons] = useState(false)
   
   const audioRef = useRef<HTMLAudioElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -182,7 +206,13 @@ export default function App() {
       .filter(e => time >= e.time)
       .pop() || null
     
-    setCurrentEvent(activeEvent)
+    // For choice events, keep them active once they appear (and persist after audio ends)
+    if (activeEvent?.type === 'choice' && !selectedBranch) {
+      setCurrentEvent(activeEvent)
+    } else if (!selectedBranch) {
+      // Only update if no branch is selected (to keep choice visible)
+      setCurrentEvent(activeEvent)
+    }
     
     // Trigger flash at 13.8 and 20.5 seconds (only once each)
     const flashTimes = [13.8, 20.5]
@@ -242,6 +272,8 @@ export default function App() {
     setShowInputResponse(null)
     setIsPaused(false)
     setShowFlash(false)
+    setSelectedBranch(null)
+    setShowChoiceButtons(false)
     flashTriggeredRef.current.clear()
   }
 
@@ -273,26 +305,15 @@ export default function App() {
 
   // Handle choice selection
   const handleChoiceSelect = (option: ChoiceEvent['options'][0]) => {
-    setUserData(prev => ({ ...prev, digDeeper: option.value }))
+    setUserData(prev => ({ ...prev, choice: option.value }))
+    setSelectedBranch(option.value)
     
-    // Find and show the ending
-    const ending = EXPERIENCE_DATA.endings.find(e => e.id === option.leadsTo)
-    if (ending) {
-      // Check if conditions match
-      const conditionsMatch = !ending.conditions || Object.entries(ending.conditions).every(
-        ([key, value]) => userData[key] === value || (key === 'digDeeper' && option.value === value)
-      )
-      
-      if (conditionsMatch) {
-        setCurrentEnding(ending)
-        setStage('ending')
-        if (audioRef.current) {
-          audioRef.current.pause()
-        }
-        if (timeUpdateIntervalRef.current) {
-          clearInterval(timeUpdateIntervalRef.current)
-        }
-      }
+    // Pause audio when choice is made
+    if (audioRef.current) {
+      audioRef.current.pause()
+    }
+    if (timeUpdateIntervalRef.current) {
+      clearInterval(timeUpdateIntervalRef.current)
     }
   }
 
@@ -317,6 +338,12 @@ export default function App() {
         // Auto-focus input when input event becomes active
         if (currentEvent?.type === 'input' && inputRef.current) {
           setTimeout(() => inputRef.current?.focus(), 100)
+        }
+
+        // Check if we've reached the choice event time
+        const choiceEvent = EXPERIENCE_DATA.timeline.find(e => e.type === 'choice')
+        if (choiceEvent && currentTime >= choiceEvent.time && !selectedBranch) {
+          setShowChoiceButtons(true)
         }
       }
     }, 100)
@@ -346,6 +373,15 @@ export default function App() {
         ref={audioRef}
         src={EXPERIENCE_DATA.metadata.audioFile || '/audio/knock-knock.mp3'}
         preload="auto"
+        onEnded={() => {
+          // When audio ends, ensure choice buttons are shown
+          const choiceEvent = EXPERIENCE_DATA.timeline.find(e => e.type === 'choice')
+          if (choiceEvent && !selectedBranch) {
+            setShowChoiceButtons(true)
+            // Continue tracking time even after audio ends
+            setCurrentTime(choiceEvent.time)
+          }
+        }}
       />
 
       {/* Play Button Stage */}
@@ -371,13 +407,33 @@ export default function App() {
           </div>
 
           {/* Text Display - always centered at same position */}
-          {(currentEvent?.type === 'text' || showInputResponse || (currentEvent?.type === 'input')) && (
+          {!selectedBranch && (currentEvent?.type === 'text' || showInputResponse || (currentEvent?.type === 'input')) && (
             <div className="text-display">
               <div className="conversational-text">
                 {showInputResponse || 
                  (currentEvent?.type === 'text' ? currentEvent.text : '') ||
                  (currentEvent?.type === 'input' ? currentEvent.label : '')}
               </div>
+              {/* Show choice buttons below the "what happens next" text */}
+              {showChoiceButtons && !selectedBranch && (
+                <div style={{ marginTop: '3rem' }}>
+                  <div className="yes-no-buttons" style={{ flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
+                    {(() => {
+                      const choiceEvent = EXPERIENCE_DATA.timeline.find(e => e.type === 'choice')
+                      return choiceEvent?.options.map((option, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => handleChoiceSelect(option)}
+                          className="yes-no-button"
+                        >
+                          {option.text}
+                        </button>
+                      ))
+                    })()}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -401,21 +457,132 @@ export default function App() {
             </div>
           )}
 
-          {/* Choice Display */}
-          {currentEvent?.type === 'choice' && (
+          {/* Choice Display - removed, now shown below text */}
+
+          {/* Branch Follow-up Screens */}
+          {selectedBranch === 'support' && (
             <div className="form-screen">
-              <div className="form-label">{currentEvent.question}</div>
-              <div className="yes-no-buttons">
-                {currentEvent.options.map((option, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    onClick={() => handleChoiceSelect(option)}
-                    className="yes-no-button"
-                  >
-                    {option.text}
+              <div className="text-display">
+                <div className="conversational-text">
+                  Help me make this my full-time life.
+                </div>
+              </div>
+              <div className="input-container-below">
+                <form onSubmit={(e) => {
+                  e.preventDefault()
+                  const formData = new FormData(e.currentTarget as HTMLFormElement)
+                  const amount = formData.get('amount') as string
+                  const frequency = formData.get('frequency') as string
+                  console.log('Donation:', { amount, frequency })
+                  // TODO: Handle donation submission
+                }} className="name-form">
+                  <input
+                    type="number"
+                    name="amount"
+                    className="form-input"
+                    placeholder="Choose amount"
+                    min="1"
+                    required
+                    autoFocus
+                  />
+                  <div className="yes-no-buttons" style={{ marginTop: '1rem', flexDirection: 'row', justifyContent: 'center' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', marginRight: '2rem' }}>
+                      <input
+                        type="radio"
+                        name="frequency"
+                        value="one-time"
+                        defaultChecked
+                        style={{ marginRight: '0.5rem', cursor: 'pointer', accentColor: 'white' }}
+                      />
+                      <span>One-time</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        name="frequency"
+                        value="recurring"
+                        style={{ marginRight: '0.5rem', cursor: 'pointer', accentColor: 'white' }}
+                      />
+                      <span>Recurring</span>
+                    </label>
+                  </div>
+                  <button type="submit" className="submit-button" style={{ marginTop: '1rem' }}>
+                    Donate
                   </button>
-                ))}
+                </form>
+              </div>
+            </div>
+          )}
+
+          {selectedBranch === 'observe' && (
+            <div className="form-screen">
+              <div className="text-display">
+                <div className="conversational-text">
+                  No pressure. Just stay close.
+                </div>
+              </div>
+              <div className="input-container-below">
+                <form onSubmit={(e) => {
+                  e.preventDefault()
+                  const formData = new FormData(e.currentTarget as HTMLFormElement)
+                  const email = formData.get('email') as string
+                  const phone = formData.get('phone') as string
+                  console.log('Signup:', { email, phone })
+                  // TODO: Handle email signup
+                }} className="name-form">
+                  <input
+                    type="email"
+                    name="email"
+                    className="form-input"
+                    placeholder="Email"
+                    required
+                  />
+                  <input
+                    type="tel"
+                    name="phone"
+                    className="form-input"
+                    placeholder="Phone (optional)"
+                    style={{ marginTop: '1rem' }}
+                  />
+                  <button type="submit" className="submit-button">
+                    enter
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {selectedBranch === 'respond' && (
+            <div className="form-screen">
+              <div className="text-display">
+                <div className="conversational-text">
+                  That's okay. Say anything.
+                </div>
+              </div>
+              <div className="input-container-below">
+                <form onSubmit={(e) => {
+                  e.preventDefault()
+                  const formData = new FormData(e.currentTarget as HTMLFormElement)
+                  const message = formData.get('message') as string
+                  console.log('Response:', { message })
+                  // TODO: Handle message submission
+                }} className="name-form">
+                  <textarea
+                    name="message"
+                    className="form-input"
+                    placeholder="Say anything..."
+                    rows={4}
+                    style={{ 
+                      resize: 'none',
+                      minHeight: '120px',
+                      fontFamily: 'inherit'
+                    }}
+                    required
+                  />
+                  <button type="submit" className="submit-button">
+                    enter
+                  </button>
+                </form>
               </div>
             </div>
           )}
