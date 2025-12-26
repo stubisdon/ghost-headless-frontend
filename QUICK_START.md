@@ -5,7 +5,7 @@
 ### Step 1: Install & Configure (2 min)
 
 ```bash
-cd /Users/stub/coding/ghost-headless-frontend-starter
+cd /Users/stub/coding/catsky.club
 npm install
 
 # Add your audio file (optional)

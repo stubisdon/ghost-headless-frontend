@@ -52,7 +52,7 @@ Visit [http://localhost:3000](http://localhost:3000) to see your site.
 ## Project Structure
 
 ```
-ghost-headless-frontend-starter/
+catsky.club/
 ├── src/
 │   ├── App.tsx          # Main application component
 │   ├── main.tsx         # React entry point

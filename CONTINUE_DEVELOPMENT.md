@@ -10,7 +10,7 @@ Everything is saved locally on your machine and backed up on GitHub. Here's how 
 
 1. **Open the project folder:**
    ```
-   File → Open Folder → /Users/stub/coding/ghost-headless-frontend-starter
+   File → Open Folder → /Users/stub/coding/catsky.club
    ```
 
 2. **Install dependencies** (if needed):
@@ -31,8 +31,8 @@ Everything is saved locally on your machine and backed up on GitHub. Here's how 
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/stubisdon/ghost-headless-frontend.git
-   cd ghost-headless-frontend
+   git clone https://github.com/stubisdon/catsky.club.git
+   cd catsky.club
    ```
 
 2. **Install dependencies:**
@@ -76,7 +76,7 @@ git status
 
 ### Starting Work:
 ```bash
-cd /Users/stub/coding/ghost-headless-frontend-starter
+cd /Users/stub/coding/catsky.club
 npm run dev
 ```
 
@@ -99,8 +99,8 @@ npm run dev
 
 ## Quick Reference
 
-- **Project Location:** `/Users/stub/coding/ghost-headless-frontend-starter`
-- **GitHub Repo:** https://github.com/stubisdon/ghost-headless-frontend
+- **Project Location:** `/Users/stub/coding/catsky.club`
+- **GitHub Repo:** https://github.com/stubisdon/catsky.club
 - **Dev Server:** http://localhost:3000
 - **Main File:** `src/App.tsx` (the immersive experience)
 
